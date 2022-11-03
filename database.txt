@@ -1,3 +1,6 @@
+# Revision number 1 BEGIN/START DATE 11/01/2022
+## Begin Fouad Aoude Student here 11/01/2022
+
 import sqlite3
 import sys
 import random
@@ -266,3 +269,7 @@ class Database:
             cursor = self.conn.cursor()
 
         return cursor
+
+# Revision number 1 FINAL DATE 11/03/2022
+## End Fouad Aoude Student here
+# Lead Tech: Fouad Aoude
