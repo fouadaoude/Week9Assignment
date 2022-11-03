@@ -1,0 +1,268 @@
+import sqlite3
+import sys
+import random
+
+class Database:
+    
+    DB_LOCATION = 'database/database.db'
+    SAMPLE_NAMES = './txt_files/names.txt'
+    SAMPLE_FIELDS = './txt_files/fields.txt'
+
+    def __init__(self, *args):
+        self.employees = {}
+        self.fields = ['unique_id', 'name', 'address', 'phone', 'ssn', 'manager', 'job_title', 'skills']
+
+        self.conn = self.connect()
+        self.cursor = self.get_cursor()
+
+    def create(self):
+        """create employee database if does not exist"""
+        try:
+            sql = """CREATE TABLE IF NOT EXISTS employees
+                        ([unique_id] INTEGER PRIMARY KEY AUTOINCREMENT,
+                         [name] String(255) NOT NULL,
+                         [address] String(255) NOT NULL,
+                         [phone] INTEGER,
+                         [ssn] INTEGER,
+                         [manager] String(255) NOT NULL,
+                         [job_title] String(255) NOT NULL,
+                         [skills] String(255) NOT NULL)"""
+            self.execute(sql)
+            print("Employee database created successfully.")
+        except sqlite3.Error as e:
+            print("Creating employee database resulted in an error.", e)
+
+    def select(self, unique_id=None):
+        """select a employee from the employee database"""
+        if unique_id:            
+            try:
+                sql = """SELECT * FROM employees WHERE unique_id = {};""".format(unique_id)
+                self.execute(sql)
+                result = self.cursor.fetchall()
+                self.commit()
+                print("result", result)
+            except sqlite3.Error as e:
+                print("Could not select employee from employee database.", e)
+
+    def select_all(self):
+        """select and return all employees from database"""
+        try:
+            sql = """SELECT * FROM employees;"""
+            self.execute(sql)
+            result = self.cursor.fetchall()
+            result = [list(i) for i in result]
+            self.commit()
+            
+            columns = []
+            employees = {}
+
+            for col in self.cursor.description:
+                columns.append(col[0])
+
+            for x in range(len(columns)):
+                for i in range(len(result)):
+                    # make employees dict multi-dimensional with setdefault
+                    employees.setdefault(result[i][0], {})[columns[x]] = result[i][x]
+            
+            return employees
+        except sqlite3.Error as e:
+            print("Selecting all employees from database resulted in error:", e)
+
+    def insert(self, data_dict=None):
+        """insert a new employee into the employee database"""
+        if data_dict:
+
+            employee_data_valid = self.validate_data(data_dict)                                                
+
+            if employee_data_valid:
+                index = 0
+                data_dict = list(data_dict.values())
+                data_dict = list(data_dict)
+                
+                while index != (len(data_dict)):
+                    col_names = ', '.join(map(str, tuple(data_dict[index])))
+                    skills = ', '.join(map(str, data_dict[index]['skills']))
+                    try:
+                        sql = """INSERT OR IGNORE INTO employees ({})                                
+                                 VALUES (?, ?, ?, ?, ?, ?, ?, '{}');""".format(col_names, skills)                                                
+                        values = list(data_dict[index].values())
+                        values = values[:-1]                        
+                        values = tuple(values)
+                        self.execute(sql, values)
+                        self.commit()
+                        print("Inserted new employee successfully.")
+                    except sqlite3.Error as e:
+                        print("Inserting into database resulted in error.", e)
+                    
+                    index += 1
+
+    def validate_data(self, data_dict=None):
+        """validates all passed in data within data_dict regardless of amount of employees"""
+        if data_dict:
+            """format 'data_dict' to get into 2-D dictionary and validate employee contents"""
+            data_dict = data_dict.values()
+            data_dict = list(data_dict)            
+            
+            """valid list holds value of iterated field of passed in employee"""
+            """that verifies the type (string or integer) that is held within data_dict"""
+            valid = []
+            
+            """index is what it says it is, the index for the current employee."""
+            index = 0 
+            
+            """keep looping until end of data_dict is reached"""
+            while index != (len(data_dict) - 1):
+                for field in self.fields:
+                    
+                    """conditionals verify type, and append bool to valid list"""
+                    if (field == "phone") or (field == "ssn") or (field == "unique_id"):                    
+                        try:
+                            valid.append(str(isinstance(data_dict[index][field], int)))
+                        except:
+                            print("Error validating either phone, ssn, or unique_id.")
+                    elif field == 'skills':
+                        try:                        
+                            x=0
+                            while data_dict[index][field][x] != data_dict[index][field][-1]:                            
+                                valid.append(str(isinstance(data_dict[index][field][x], str)))                                  
+                                x+=1
+                        except:
+                            print("Error validating skills.")
+                    else:
+                        try:
+                            valid.append(str(isinstance(data_dict[index][field], str)))                        
+                        except:
+                            print("Error validating either name, address, manager, or job_title.")
+
+                index += 1            
+            
+            """only if data_dict passes EVERY SINGLE isinstance test will list valid return True"""
+            return all(valid)
+                                
+    def generate_employee(self, quantity=1):
+        """creates random employees to insert into db using .txt files"""
+        """generates and returns as many as parameter 'quantity' holds, default is 0"""
+
+        while quantity != 0:
+            new_employee = self.generate_employee_dict()
+            unique_id = new_employee['unique_id']
+    
+            self.employees[unique_id] = new_employee
+        
+            quantity -= 1
+        
+        return self.employees
+       
+    def generate_employee_dict(self):
+        """creates new random employee and puts all employee information together to be returned"""
+        employee = {}
+        function_list = [self.generate_id(),self.generate_name(),
+                         self.generate_address(),self.generate_phone(),
+                         self.generate_ssn(), self.generate_manager(),
+                         self.generate_job(), self.generate_skills()]
+        
+        for i in range(len(self.fields)):
+            employee[self.fields[i]] = function_list[i]
+        
+        return employee
+
+    def generate_id(self):
+        """generate random number (8 digits)"""
+        return random.randint(10000000, 99999999)
+
+    def generate_name(self):
+        names = open(Database.SAMPLE_NAMES, 'r')
+        rand_name = random.choice(names.readlines())
+        rand_name = str(rand_name.strip())
+        names.close() 
+        
+        return rand_name
+
+    def generate_address(self):
+        """creates random address number and concatenate random name"""
+        address = str(random.randint(10, 99999))
+        rand_int = random.randint(1, 1000)
+
+        address_types = [' Blvd', ' St', ' Avenue', ' Road', ' Lane', ' Drive']
+        names = open(Database.SAMPLE_NAMES, 'r')
+
+        address = address + ' ' + str(names.readlines()[rand_int].splitlines()[0]) + random.choice(address_types)
+        names.close()
+
+        return address
+        
+    def generate_phone(self):
+        return random.randint(1000000000, 9999999999)
+
+    def generate_ssn(self):
+        """generate random number (9 digits)"""
+        ssn = random.randint(100000000, 999999999)
+        
+        return ssn
+        
+    def generate_manager(self):
+        """selects random choice for manager [yes or no]"""
+        return random.choice(["Yes", "No"])
+
+    def generate_job(self):
+        """generates random job title based on fields.txt file"""
+        fields = open(Database.SAMPLE_FIELDS, 'r')
+        job = random.choice(fields.readlines())
+        fields.close()
+        
+        return job.strip()
+
+    def generate_skills(self):
+        """uses fields.txt file to append and return random skills into skills list"""
+        fields_file = open(Database.SAMPLE_FIELDS, 'r')
+        fields = fields_file.readlines()        
+        
+        skills = []
+        for x in range(8):
+            rand_int = random.randint(1, 1000)
+            skills.append(fields[rand_int].strip())
+        
+        fields_file.close()
+
+        return skills
+
+    def commit(self):
+        """commit changes to database"""
+        self.conn.commit()
+
+    def execute(self, sql, values=None):
+        """execute one row of data to current cursor"""
+        if values:
+            try:
+                self.cursor.execute(sql, values) 
+            except sqlite3.Error as e:
+                print("Error executing with values", e)
+        else:
+            try:
+                self.cursor.execute(sql)
+            except sqlite3.Error as e:
+                print("Error executing without values", e)
+
+    def connect(self):
+        conn = None
+
+        try:
+            conn = sqlite3.connect(Database.DB_LOCATION)            
+        except sqlite3.Error as e:
+            print("Something went wrong connecting to database.",e)
+        finally:
+            conn = sqlite3.connect(Database.DB_LOCATION)            
+
+        return conn
+    
+    def get_cursor(self):
+        cursor = None
+
+        try:
+            cursor = self.conn.cursor()            
+        except sqlite3.Error as e:
+            print("Something went wrong getting cursor", e)
+        finally:
+            cursor = self.conn.cursor()
+
+        return cursor
