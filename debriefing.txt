@@ -1,0 +1,4 @@
+Lead Tech: Fouad Aoude
+Planning: 2 Hours
+Execution: 2.5 Hours
+Host OS: Mac OSX
