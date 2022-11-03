@@ -1,3 +1,6 @@
+# Revision number 1 BEGIN/START DATE 11/01/2022
+## Begin Fouad Aoude Student here 11/01/2022
+
 import sys
 
 from database import Database as db
@@ -117,4 +120,6 @@ if __name__ == "__main__":
         elif selection == 3:
             break
 
-"""create a "press enter to create random employee entry" """
+# Revision number 1 FINAL DATE 11/03/2022
+## End Fouad Aoude Student here
+# Lead Tech: Fouad Aoude
